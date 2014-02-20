@@ -12,11 +12,7 @@ public class Message implements Serializable, Comparable<Message> {
 	/**
 	 * Value of clock in sender process
 	 */
-	public final int time;
-	/**
-	 * Message type
-	 */
-	public final TYPE type;
+	public final int sender_time;
 
 	/**
 	 * Create a new message
@@ -26,15 +22,14 @@ public class Message implements Serializable, Comparable<Message> {
 	 * @param time
 	 *            clock value of sending process
 	 */
-	public Message(int sender_process, int time, TYPE type) {
+	public Message(int sender_process, int time) {
 		this.sender_process = sender_process;
-		this.time = time;
-		this.type = type;
+		this.sender_time = time;
 	}
 
 	@Override
 	public int compareTo(Message arg0) {
-		int d = time - arg0.time;
+		int d = sender_time - arg0.sender_time;
 
 		if (d == 0) {
 			// Equal time, use process id as tie-breaker
@@ -43,13 +38,13 @@ public class Message implements Serializable, Comparable<Message> {
 
 		return d;
 	}
-
+	
 	@Override
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + sender_process;
-		result = prime * result + time;
+		result = prime * result + sender_time;
 		return result;
 	}
 
@@ -64,19 +59,12 @@ public class Message implements Serializable, Comparable<Message> {
 		Message other = (Message) obj;
 		if (sender_process != other.sender_process)
 			return false;
-		if (time != other.time)
+		if (sender_time != other.sender_time)
 			return false;
 		return true;
 	}
 	
-	/**
-	 * Determines the type of a message, either normal/payload or an acknowledgement
-	 */
-	public enum TYPE {
-		MSG, ACK
-	}
-	
 	public String toString() {
-		return String.format("%s[%d,%d]", type.toString() , sender_process, time);
+		return String.format("MSG[%d,%d]", sender_process, sender_time);
 	}
 }

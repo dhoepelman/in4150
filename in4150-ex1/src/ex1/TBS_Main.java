@@ -1,8 +1,8 @@
 package ex1;
 
-import java.rmi.RMISecurityManager;
-import java.rmi.RemoteException;
+import java.rmi.*;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 
 /**
@@ -44,7 +44,7 @@ public class TBS_Main {
 		// Create all processes
 		Map<Integer, String> processrmimap = new HashMap<>();
 		// Read only view for the processes
-		Map<Integer, String> ropmap = Collections.unmodifiableMap(processrmimap);
+		Map<Integer, String> ro_pmap = Collections.unmodifiableMap(processrmimap);
 		for(int i=0;i<param_numproc;i++) {
 			// 2^12 = 8096 is enough for a sample exercise like this
 			// In the real-world you'd do some resolution to enforce unique ID's
@@ -52,8 +52,15 @@ public class TBS_Main {
 			String rmiid = "rmi://" + RMI_HOST + ":" + RMI_PORT + "/p_" + pid;
 			processrmimap.put(pid, rmiid);
 			Process p = new Process(pid, 0);
-			p.setProcesses(processrmimap);
+			p.setProcesses(ro_pmap);
 			processmap.put(pid, p);
+			try {
+				reg.bind(rmiid, (Process_RMI)UnicastRemoteObject.exportObject(p));
+			} catch (RemoteException|AlreadyBoundException e) {
+				System.err.println("Error registering process " + pid + " to RMI registery");
+				e.printStackTrace();
+				System.exit(1);
+			}
 		}
 	}
 
