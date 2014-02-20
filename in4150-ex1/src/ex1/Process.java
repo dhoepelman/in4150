@@ -57,31 +57,25 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 		// When receiving a message, set the clock to the max of the current
 		// clock and the message time and increase
 		clock = Math.max(clock, m.sender_time) + 1;
-		// Put the message in the queue
-		messq.add(m);
-		// Populate the remaing acknowledgements list
-		populateAckList(m);
-		// Send acknowledgements for this message
-		sendNewAck(m);
-	}
-
-	@Override
-	public void receive(Ack ack) {
-		loginfo("Received " + ack.toString());
 		
-		// When receiving a message, set the clock to the max of the current
-		// clock and the message time and increase
-		clock = Math.max(clock, ack.sender_time) + 1;
-		
-		Message m = ack.getAckedMsg();
-		populateAckList(m);
-		Set<Integer> remaining_acks = ackList.get(m);
-		// We've gotten an ack for m from this process, remove it from the list
-		remaining_acks.remove(ack.sender_process);
-		// If the acked message is at the top of the queue and there's no more
-		// acks remaining, deliver!
-		if (remaining_acks.isEmpty() && m.equals(messq.peek())) {
-			deliver();
+		if(m instanceof Ack) {
+			Message ackedm = ((Ack)m).getAckedMsg();
+			populateAckList(ackedm);
+			Set<Integer> remaining_acks = ackList.get(ackedm);
+			// We've gotten an ack for m from this process, remove it from the list
+			remaining_acks.remove(m.sender_process);
+			// If the acked message is at the top of the queue and there's no more
+			// acks remaining, deliver!
+			if (remaining_acks.isEmpty() && ackedm.equals(messq.peek())) {
+				deliver();
+			}
+		} else {
+			// Put the message in the queue
+			messq.add(m);
+			// Populate the remaing acknowledgements list
+			populateAckList(m);
+			// Send acknowledgements for this message
+			sendNewAck(m);
 		}
 	}
 
@@ -148,20 +142,6 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 				e.printStackTrace();
 			}
 		}
-	}
-
-	public void send(Ack ack) {
-		// Broadcast the message to every process (including this process)
-		loginfo("Broadcasting " + ack.toString());
-		for(String p_rmi : processes.values()) {
-			try {
-				((Process_RMI)rmireg.lookup(p_rmi)).receive(ack);
-			} catch (RemoteException | NotBoundException e) {
-				logerr(String.format("Could not send %s to %s", ack, p_rmi));
-				e.printStackTrace();
-			}
-		}
-		
 	}
 
 	private void randomDelay() {
