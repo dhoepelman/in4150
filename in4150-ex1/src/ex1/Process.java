@@ -1,10 +1,15 @@
 package ex1;
 
+import java.rmi.*;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
 import java.util.logging.Logger;
 
-public class Process implements Process_RMI {
-	private static final Logger log = Logger.getLogger("Process");
+public class Process extends UnicastRemoteObject implements Process_RMI {
+	private static final long serialVersionUID = -2731859865280472117L;
+
+	private final Logger log = Logger.getLogger("Process");
 
 	// Scalar clock for this process
 	private int clock = 0;
@@ -14,6 +19,10 @@ public class Process implements Process_RMI {
 	 * Map of all processes and their RMI strings
 	 */
 	private Map<Integer, String> processes;
+	/**
+	 * RMI registry
+	 */
+	private Registry rmireg;
 
 	// Sorted queue of messages that have been received but not yet delivered
 	Queue<Message> messq = new PriorityQueue<>();
@@ -21,25 +30,25 @@ public class Process implements Process_RMI {
 	// acknowledge it
 	Map<Message, Set<Integer>> ackList = new HashMap<>();
 
-	public Process() {
+	public Process() throws RemoteException {
 		this(new Random().nextInt());
 	}
 
-	public Process(int process_id) {
+	public Process(int process_id) throws RemoteException {
 		this(process_id, new Random().nextInt(100));
 	}
 
-	public Process(int process_id, int clock) {
+	public Process(int process_id, int clock) throws RemoteException {
 		this.process_id = process_id;
 		this.clock = clock;
 	}
 
-	private Message createMessage() {
-		return new Message(process_id, ++clock);
+	public void sendNewMessage() {
+		send(new Message(process_id, ++clock));
 	}
 
-	private Ack createAck(Message m) {
-		return new Ack(process_id, ++clock, m.sender_process, m.sender_time);
+	public void sendNewAck(Message m) {
+		send(new Ack(process_id, ++clock, m.sender_process, m.sender_time));
 	}
 
 	@Override
@@ -53,12 +62,17 @@ public class Process implements Process_RMI {
 		// Populate the remaing acknowledgements list
 		populateAckList(m);
 		// Send acknowledgements for this message
-		sendAcks(m);
+		sendNewAck(m);
 	}
 
 	@Override
 	public void receive(Ack ack) {
 		loginfo("Received " + ack.toString());
+		
+		// When receiving a message, set the clock to the max of the current
+		// clock and the message time and increase
+		clock = Math.max(clock, ack.sender_time) + 1;
+		
 		Message m = ack.getAckedMsg();
 		populateAckList(m);
 		Set<Integer> remaining_acks = ackList.get(m);
@@ -122,12 +136,32 @@ public class Process implements Process_RMI {
 		}
 	}
 
-	private void send(Message m) {
-		randomDelay();
+	public void send(Message m) {
+		//randomDelay();
+		loginfo("Broadcasting " + m.toString());
+		// Broadcast the message to every process (including this process)
+		for(String p_rmi : processes.values()) {
+			try {
+				((Process_RMI)rmireg.lookup(p_rmi)).receive(m);
+			} catch (RemoteException | NotBoundException e) {
+				logerr(String.format("Could not send %s to %s", m, p_rmi));
+				e.printStackTrace();
+			}
+		}
 	}
 
-	private void send(Ack ack) {
-
+	public void send(Ack ack) {
+		// Broadcast the message to every process (including this process)
+		loginfo("Broadcasting " + ack.toString());
+		for(String p_rmi : processes.values()) {
+			try {
+				((Process_RMI)rmireg.lookup(p_rmi)).receive(ack);
+			} catch (RemoteException | NotBoundException e) {
+				logerr(String.format("Could not send %s to %s", ack, p_rmi));
+				e.printStackTrace();
+			}
+		}
+		
 	}
 
 	private void randomDelay() {
@@ -138,12 +172,8 @@ public class Process implements Process_RMI {
 		}
 	}
 
-	private void sendAcks(Message m) {
-
-	}
-
 	private void loginfo(String msg) {
-		log.info(String.format("P_%d[%d]: %m", process_id, clock, msg));
+		log.info(String.format("P_%d[%d]: %s", process_id, clock, msg));
 	}
 
 	private void logwarn(String msg) {
@@ -159,5 +189,18 @@ public class Process implements Process_RMI {
 	 */
 	public void setProcesses(Map<Integer, String> processmap) {
 		this.processes = processmap;
+	}
+	
+	public void setRMI(Registry r) {
+		this.rmireg = r;
+	}
+	
+	public void stop() {
+		try {
+			unexportObject(this, true);
+		} catch (NoSuchObjectException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
 }
