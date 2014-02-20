@@ -1,6 +1,10 @@
 package ex1;
 
-public class Message implements Comparable<Message> {
+import java.io.Serializable;
+
+public class Message implements Serializable, Comparable<Message> {
+	private static final long serialVersionUID = 5695487132387898197L;
+	
 	/**
 	 * Sending process id
 	 */
@@ -9,6 +13,10 @@ public class Message implements Comparable<Message> {
 	 * Value of clock in sender process
 	 */
 	public final int time;
+	/**
+	 * Message type
+	 */
+	public final TYPE type;
 
 	/**
 	 * Create a new message
@@ -18,9 +26,10 @@ public class Message implements Comparable<Message> {
 	 * @param time
 	 *            clock value of sending process
 	 */
-	public Message(int sender_process, int time) {
+	public Message(int sender_process, int time, TYPE type) {
 		this.sender_process = sender_process;
 		this.time = time;
+		this.type = type;
 	}
 
 	@Override
@@ -60,6 +69,14 @@ public class Message implements Comparable<Message> {
 		return true;
 	}
 	
+	/**
+	 * Determines the type of a message, either normal/payload or an acknowledgement
+	 */
+	public enum TYPE {
+		MSG, ACK
+	}
 	
-
+	public String toString() {
+		return String.format("%s[%d,%d]", type.toString() , sender_process, time);
+	}
 }
