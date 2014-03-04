@@ -11,9 +11,13 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 
 	private final Logger log = Logger.getLogger("Process");
 
-	// Scalar clock for this process
+    /**
+     *  Scalar clock for this process
+     */
 	private int clock = 0;
-	// Process id
+    /**
+     * Process id
+     */
 	public final int process_id;
 	/**
 	 * Map of all processes and their RMI strings
@@ -24,29 +28,50 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	 */
 	private Registry rmireg;
 
-	// Sorted queue of messages that have been received but not yet delivered
+    /**
+     * Sorted queue of messages that have been received but not yet delivered
+     */
 	Queue<Message> messq = new PriorityQueue<>();
-	// For every received message, a list of processes that have yet to
-	// acknowledge it
+    /**
+     * For every received message, a list of processes that have yet to
+     * acknowledge it
+     */
 	Map<Message, Set<Integer>> ackList = new HashMap<>();
 
+    /**
+     * Make a process with a random ID between 0 and 2^32-1
+     * @throws RemoteException
+     */
 	public Process() throws RemoteException {
 		this(new Random().nextInt());
 	}
 
+    /**
+     * Make a process with a specific process id
+     */
 	public Process(int process_id) throws RemoteException {
 		this(process_id, new Random().nextInt(100));
 	}
 
+    /**
+     * Make a process with a specific process id and initial clock
+     */
 	public Process(int process_id, int clock) throws RemoteException {
 		this.process_id = process_id;
 		this.clock = clock;
 	}
 
+    /**
+     * Broadcast a new message from this process
+     */
 	public void sendNewMessage() {
 		send(new Message(process_id, ++clock));
 	}
 
+    /**
+     * Broadcast an acknowledgement
+     * @param m the message to be ack'ed
+     */
 	public void sendNewAck(Message m) {
 		send(new Ack(process_id, ++clock, m.sender_process, m.sender_time));
 	}
@@ -79,7 +104,10 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 		}
 	}
 
-	// Check to see if we can deliver
+    /**
+     * Check to see if the message at the top of the queue can be delivered
+     * @return true if the top message can be delivered, false if not or if there is no message
+     */
 	private boolean canDeliver() {
 		Message m = messq.peek();
 		if (m == null) {
@@ -97,11 +125,17 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	 * Make the initial list of remaining acknowledgements for a message
 	 */
 	private void populateAckList(Message m) {
+        // If there isn't an set of processes already
 		if (!ackList.containsKey(m)) {
+            // Copy all processes into the new set
 			ackList.put(m, new HashSet<>(processes.keySet()));
 		}
 	}
 
+    /**
+     * "Deliver" the message
+     * As there is no process behind this just delete the message
+     */
 	private void deliver() {
 		// Deliver the message at the top of the queue
 		Message m = messq.poll();
