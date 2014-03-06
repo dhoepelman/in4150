@@ -235,4 +235,8 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	public void setTarget(Target t) {
 		this.target = t;
 	}
+	
+	public void setClock(int c){
+		this.clock = c;
+	}
 }

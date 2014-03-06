@@ -69,6 +69,11 @@ public class TBS_Main {
 			switch(line) {
 			case "exit":
 				break console;
+			case "reset":
+				for(Process p : localprocessmap.values()) {
+					p.setClock(0);
+				}
+				break;
 			case "test1":
 				TestCase1 tc1 = new TestCase1(localprocessmap);
 				setTarget(tc1);

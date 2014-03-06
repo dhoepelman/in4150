@@ -44,7 +44,7 @@ public class TestCase1 extends Thread implements Target {
 		} catch (InterruptedException e) {}
 		p2.sendNewMessage();
 		try {
-			Thread.sleep(400);
+			Thread.sleep(3000);
 		} catch (InterruptedException e) {}
 		p0.sendNewMessage();
 		
