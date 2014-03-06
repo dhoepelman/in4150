@@ -13,7 +13,6 @@ public class TBS_Main {
 	private static final int RMI_PORT = 1099;
 	private Registry reg;
 
-	
 	private Map<Integer, Process> localprocessmap = new HashMap<>();
 	private Map<Integer, String> processrmimap = new HashMap<>();
 	
@@ -21,6 +20,8 @@ public class TBS_Main {
 
 	private final String remotehost;
 	private final boolean evenprocessnumbers;
+	
+	private final static int num_proc = 2;
 	
     public static void main(String... args) throws InterruptedException {
     	if(args.length != 2) {
@@ -51,12 +52,35 @@ public class TBS_Main {
 		}
 		
 		// create the local processes
-		for(int i=0;i<3;i++) {
+		for(int i=0;i<num_proc;i++) {
 			// Create processes {0,2,4,...} or {1,3,5,...}
 			createLocalProcess(startpid+2*i);
 			// bind the other (remote) processes
 			bindRemoteProcess(startremotepid+2*i);
 		}
+		
+		System.out.println("Processes started, now accepting commands:");
+		Scanner in = new Scanner(System.in);
+		while(true) {
+			String line = in.nextLine();
+			if(line.equals("exit")) {
+				break;
+			} else {
+				try {
+					localprocessmap.get(Integer.parseInt(line)).sendNewMessage();
+				}
+				catch(NumberFormatException e) {
+					System.out.println("Invalid number");
+				}
+				catch(NullPointerException e) {
+					System.out.println("Not a local process");
+				}
+				catch(Exception e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		stop();
 	}
 
 	private void createLocalProcess(int pid) {
