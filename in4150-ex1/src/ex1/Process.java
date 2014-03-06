@@ -13,6 +13,8 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 
 	private final Logger log = Logger.getLogger("Process");
 
+	private Target target;
+	
     /**
      *  Scalar clock for this process
      */
@@ -153,8 +155,10 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 		}
 		// Remove the acklist for m
 		ackList.remove(m);
-		// In a real situation we would actually do something here
 		loginfo("Delivered " + m.toString());
+		if(target != null) {
+			target.deliver(process_id, m);
+		}
 		// Check if we can deliver the next message
 		if (canDeliver()) {
 			deliver();
@@ -196,9 +200,9 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	}
 
 	private void randomDelay() {
-		// Random delay before sending [0,3]s
+		// Random delay before sending [0.5,3]s
 		try {
-			Thread.sleep(new Random().nextInt(3000));
+			Thread.sleep(new Random().nextInt(2500)+500);
 		} catch (InterruptedException e) {
 		}
 	}
@@ -226,5 +230,9 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+	}
+
+	public void setTarget(Target t) {
+		this.target = t;
 	}
 }

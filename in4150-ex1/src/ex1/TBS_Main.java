@@ -5,6 +5,8 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.*;
 
+import ex1.testcases.TestCase1;
+
 /**
  * Main class for Distributed algorithms ex. 1. Initiates processes and
  * maintains Process registry
@@ -21,7 +23,7 @@ public class TBS_Main {
 	private final String remotehost;
 	private final boolean evenprocessnumbers;
 	
-	private final static int num_proc = 2;
+	private final static int num_proc = 3;
 	
     public static void main(String... args) throws InterruptedException {
     	if(args.length != 2) {
@@ -54,18 +56,25 @@ public class TBS_Main {
 		// create the local processes
 		for(int i=0;i<num_proc;i++) {
 			// Create processes {0,2,4,...} or {1,3,5,...}
-			createLocalProcess(startpid+2*i);
+			createLocalProcess(startpid+i);
+			//createLocalProcess(startpid+2*i);
 			// bind the other (remote) processes
-			bindRemoteProcess(startremotepid+2*i);
+			//bindRemoteProcess(startremotepid+2*i);
 		}
 		
 		System.out.println("Processes started, now accepting commands:");
 		Scanner in = new Scanner(System.in);
-		while(true) {
+		console: while(true) {
 			String line = in.nextLine();
-			if(line.equals("exit")) {
+			switch(line) {
+			case "exit":
+				break console;
+			case "test1":
+				TestCase1 tc1 = new TestCase1(localprocessmap);
+				setTarget(tc1);
+				tc1.start();
 				break;
-			} else {
+			default:
 				try {
 					localprocessmap.get(Integer.parseInt(line)).sendNewMessage();
 				}
@@ -84,6 +93,12 @@ public class TBS_Main {
 		stop();
 	}
 
+	private void setTarget(Target t) {
+		for(Process p: localprocessmap.values()) {
+			p.setTarget(t);
+		}
+	}
+	
 	private void createLocalProcess(int pid) {
 		String rmiid = "rmi://localhost:" + RMI_PORT + "/p_" + pid;
 		try {
