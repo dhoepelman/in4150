@@ -187,6 +187,7 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 						((Process_RMI)rmireg.lookup(p_rmi)).receive(m);
 					} catch (RemoteException | NotBoundException e) {
 						logerr(String.format("Could not send %s to %s", m, p_rmi));
+						e.printStackTrace();
 					}
 					
 				}
