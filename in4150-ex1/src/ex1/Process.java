@@ -4,6 +4,8 @@ import java.rmi.*;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class Process extends UnicastRemoteObject implements Process_RMI {
@@ -22,16 +24,17 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	/**
 	 * Map of all processes and their RMI strings
 	 */
-	private Map<Integer, String> processes;
+	private final Map<Integer, String> processes;
 	/**
 	 * RMI registry
 	 */
-	private Registry rmireg;
+	private final Registry rmireg;
 
     /**
      * Sorted queue of messages that have been received but not yet delivered
      */
-	Queue<Message> messq = new PriorityQueue<>();
+	// PriorityBlockingQueue is a synchronized priority queue
+	Queue<Message> messq = new PriorityBlockingQueue<>();
     /**
      * For every received message, a list of processes that have yet to
      * acknowledge it
@@ -42,23 +45,17 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
      * Make a process with a random ID between 0 and 2^32-1
      * @throws RemoteException
      */
-	public Process() throws RemoteException {
-		this(new Random().nextInt());
+	public Process(Map<Integer, String> processmap, Registry r) throws RemoteException {
+		this(new Random().nextInt(), processmap, r);
 	}
 
     /**
      * Make a process with a specific process id
      */
-	public Process(int process_id) throws RemoteException {
-		this(process_id, new Random().nextInt(100));
-	}
-
-    /**
-     * Make a process with a specific process id and initial clock
-     */
-	public Process(int process_id, int clock) throws RemoteException {
+	public Process(int process_id, Map<Integer, String> processmap, Registry r) throws RemoteException {
 		this.process_id = process_id;
-		this.clock = clock;
+		this.processes = processmap;
+		this.rmireg = r;
 	}
 
     /**
@@ -164,49 +161,62 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 		}
 	}
 
+	/**
+	 * Broadcast a message to all processes, with a [0,3]s random delay for each process
+	 * @param m the message
+	 */
 	public void send(Message m) {
-		//randomDelay();
+		send(m, true);
+	}
+	
+	/**
+	 * Broadcast a message to all processes
+	 * @param m the message
+	 * @param randomdelay Whether to introduce a random delay in [0,3]s for each process
+	 */
+	public void send(final Message m, final boolean randomdelay) {
 		loginfo("Broadcasting " + m.toString());
 		// Broadcast the message to every process (including this process)
-		for(String p_rmi : processes.values()) {
-			try {
-				((Process_RMI)rmireg.lookup(p_rmi)).receive(m);
-			} catch (RemoteException | NotBoundException e) {
-				logerr(String.format("Could not send %s to %s", m, p_rmi));
-				e.printStackTrace();
-			}
+		for(final String p_rmi : processes.values()) {
+			new Thread() {
+				public void run() {
+					try {
+						if(randomdelay) {
+							randomDelay();
+						}
+						((Process_RMI)rmireg.lookup(p_rmi)).receive(m);
+					} catch (RemoteException | NotBoundException e) {
+						logerr(String.format("Could not send %s to %s", m, p_rmi));
+						e.printStackTrace();
+					}
+					
+				}
+			}.start();
 		}
 	}
 
 	private void randomDelay() {
-		// Random delay before sending [0,0.5]s
+		// Random delay before sending [0,3]s
 		try {
-			Thread.sleep(new Random().nextInt(500));
+			Thread.sleep(new Random().nextInt(3000));
 		} catch (InterruptedException e) {
 		}
 	}
 
-	private void loginfo(String msg) {
-		log.info(String.format("P_%d[%d]: %s", process_id, clock, msg));
+	private synchronized void loginfo(String msg) {
+		log(Level.INFO, msg);
 	}
 
 	private void logwarn(String msg) {
-		log.warning(String.format("P_%d[%d]: %m", process_id, clock, msg));
+		log(Level.WARNING, msg);
 	}
 
 	private void logerr(String msg) {
-		log.severe(String.format("P_%d[%d]: %m", process_id, clock, msg));
-	}
-
-	/**
-	 * Sets the map of processes, from process id to RMI string
-	 */
-	public void setProcesses(Map<Integer, String> processmap) {
-		this.processes = processmap;
+		log(Level.SEVERE, msg);
 	}
 	
-	public void setRMI(Registry r) {
-		this.rmireg = r;
+	private synchronized void log(Level lvl, String msg) {
+		log.log(lvl, String.format("P_%d[%d]: %m", process_id, clock, msg));
 	}
 	
 	public void stop() {
