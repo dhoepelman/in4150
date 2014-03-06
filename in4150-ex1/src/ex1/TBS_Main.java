@@ -80,6 +80,7 @@ public class TBS_Main {
 				}
 			}
 		}
+		in.close();
 		stop();
 	}
 
