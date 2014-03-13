@@ -42,7 +42,7 @@ public class TBS_Main {
 		if ((reg = createRegistery()) == null) {
 			System.exit(1);
 		}
-
+    
 		int startpid;
 		int startremotepid;
 		if(evenprocessnumbers){
