@@ -166,23 +166,27 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	}
 	
 	
-	public void send(Message m, int proc_id) {
+	public void send(final Message m, final int proc_id) {
 		send(m,proc_id,true);
 	}
 	/**
 	 * Send a message to a process
 	 * @param m
 	 */
-	public void send(Message m, int proc_id, boolean log) {
+	public void send(final Message m, final int proc_id, boolean log) {
 		if(log) {
 			loginfo(String.format("Sending to process %d message %s", proc_id , m.toString()));
 		}
-		try {
-			((Process_RMI)rmireg.lookup(processrmimap.get(proc_id))).receive(m);
-		} catch (RemoteException | NotBoundException e) {
-			logerr(String.format("Could not send %s to %d", m, proc_id));
-			e.printStackTrace();
-		}
+		new Thread() {
+			public void run() {
+				try {
+					((Process_RMI)rmireg.lookup(processrmimap.get(proc_id))).receive(m);
+				} catch (RemoteException | NotBoundException e) {
+					logerr(String.format("Could not send %s to %d", m, proc_id));
+					e.printStackTrace();
+				}
+			}
+		}.start();
 	}
 
 	private void randomDelay(int min, int max) {
@@ -243,5 +247,9 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 		sb.append(String.format("\tRequest queue: %s\n", this.requestQueue.toString()));
 		
 		return sb.toString();
+	}
+	
+	public String toString() {
+		return String.format("P_%d[%d]", process_id, clock);
 	}
 }
