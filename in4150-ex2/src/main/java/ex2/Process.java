@@ -3,8 +3,7 @@ package ex2;
 import java.rmi.*;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -24,19 +23,29 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	/**
 	 * Map of all processes in the request set and their RMI strings
 	 */
-	private final Map<Integer, String> requestSet;
+	private final Map<Integer, String> processrmimap;
 	/**
 	 * RMI registry
 	 */
 	private final Registry rmireg;
+	
+	/**
+	 * Processes to request to
+	 */
+	private final Collection<Integer> requestSet;
 
     /**
      * Make a process with a specific process id
+     * @param processrmimap 
      */
-	public Process(int process_id, Map<Integer, String> requestSet, Registry r) throws RemoteException {
+	public Process(int process_id, Map<Integer, String> processrmimap, Registry r, Collection<Integer> requestSet) throws RemoteException {
 		this.process_id = process_id;
-		this.requestSet = requestSet;
+		this.processrmimap = processrmimap;
 		this.rmireg = r;
+		if(requestSet == null) {
+			throw new NullPointerException();
+		}
+		this.requestSet = requestSet;
 	}
 
     /**
@@ -61,20 +70,15 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	 * @param m the message
 	 */
 	public void send(final Message m) {
-		loginfo("Sending to request set: " + m.toString());
+		loginfo(String.format("Sending to request set %s message %s", Arrays.toString(requestSet.toArray()) , m.toString()));
 		// Broadcast the message to every process (including this process)
-		for(final String p_rmi : requestSet.values()) {
-			new Thread() {
-				public void run() {
-					try {
-						((Process_RMI)rmireg.lookup(p_rmi)).receive(m);
-					} catch (RemoteException | NotBoundException e) {
-						logerr(String.format("Could not send %s to %s", m, p_rmi));
-						e.printStackTrace();
-					}
-					
-				}
-			}.start();
+		for(final Integer i : requestSet) {
+			try {
+				((Process_RMI)rmireg.lookup(processrmimap.get(i))).receive(m);
+			} catch (RemoteException | NotBoundException e) {
+				logerr(String.format("Could not send %s to %s", m, processrmimap.get(i)));
+				e.printStackTrace();
+			}
 		}
 	}
 

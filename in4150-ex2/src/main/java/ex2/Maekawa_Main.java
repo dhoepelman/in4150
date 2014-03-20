@@ -26,14 +26,14 @@ public class Maekawa_Main {
 	private final int num_proc;
 	
     public static void main(String... args) throws InterruptedException {
-    	if(args.length != 2) {
+    	if(args.length > 1) {
     		System.out.println("Maekawa_Main [num_processes=3]");
     		return;
     	}
     	int num_proc = default_num_proc;
     	try{
     		num_proc = Integer.parseInt(args[0]);
-    	}catch(NumberFormatException e) {
+    	}catch(Exception e) {
     		System.err.println("Invalid number of processes, using the default of " + default_num_proc);
     	}
     	if(num_proc != 3 && num_proc != 7) {
@@ -52,7 +52,7 @@ public class Maekawa_Main {
 		}
 		
 		// create the local processes
-		for(int i=0;i<num_proc;i++) {
+		for(int i=1;i<=num_proc;i++) {
 			createLocalProcess(i);
 		}
 		
@@ -74,14 +74,15 @@ public class Maekawa_Main {
 			//	tc1.start();
 			//	break;
 			default:
+				if(!processmap.containsKey(Integer.parseInt(line))) {
+					System.out.println("Not a local process");
+					continue;
+				}
 				try {
 					processmap.get(Integer.parseInt(line)).sendNewMessage();
 				}
 				catch(NumberFormatException e) {
 					System.out.println("Invalid number");
-				}
-				catch(NullPointerException e) {
-					System.out.println("Not a local process");
 				}
 				catch(Exception e) {
 					e.printStackTrace();
@@ -97,13 +98,8 @@ public class Maekawa_Main {
 		try {
             processrmimap.put(pid, rmiid);
             Map<Integer, String> reqSet = new HashMap<>();
-            Process p = new Process(pid, reqSet, reg);
+            Process p = new Process(pid, processrmimap, reg, createRequestSet(pid));
             processmap.put(pid, p);
-            
-            // Complete the request set for this process
-            for(Integer i : createRequestSet(pid)) {
-            	reqSet.put(i, processrmimap.get(i));
-            }
             reg.bind(rmiid, p);
         } catch (RemoteException |AlreadyBoundException e) {
             System.err.println("Error registering process " + pid + " to RMI registery");
