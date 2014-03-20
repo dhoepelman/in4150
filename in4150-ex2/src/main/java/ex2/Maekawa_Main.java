@@ -79,7 +79,7 @@ public class Maekawa_Main {
 					continue;
 				}
 				try {
-					processmap.get(Integer.parseInt(line)).sendNewMessage();
+					processmap.get(Integer.parseInt(line)).sendRequest();
 				}
 				catch(NumberFormatException e) {
 					System.out.println("Invalid number");

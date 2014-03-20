@@ -4,8 +4,12 @@ import java.rmi.*;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.*;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.atomic.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import ex2.Message.TYPE;
 
 public class Process extends UnicastRemoteObject implements Process_RMI {
 	private static final long serialVersionUID = -2731859865280472117L;
@@ -49,48 +53,145 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	}
 
     /**
-     * Broadcast a new message from this process
+     * Multicasts a new message from this process
      */
-	public void sendNewMessage() {
-		send(new Message(process_id, ++clock));
+	public void multicastNewMessage(Message.TYPE t) {
+		multicast(newMessage(t));
+	}
+	/**
+	 * Create a new message
+	 */
+	private Message newMessage(Message.TYPE t) {
+		return new Message(process_id, ++clock, t);
 	}
 
+	private AtomicBoolean granted = new AtomicBoolean(false);
+	private AtomicReference<Message> current_grant = new AtomicReference<>();
+	private Queue<Message> requestQueue = new PriorityBlockingQueue<>(); 
+	private AtomicBoolean inquiring = new AtomicBoolean(false);
+	private AtomicBoolean postponed = new AtomicBoolean(false);
+	private AtomicInteger no_grants = new AtomicInteger(0);
+	
+	private void handleRequest(Message m) {
+		if(!granted.get()) {
+			current_grant.set(m);
+			send(newMessage(TYPE.GRANT), m.process);
+			granted.set(true);
+		} else {
+			requestQueue.add(m);
+			Message topRequest = requestQueue.peek();
+			if(current_grant.get().compareTo(m) < 0 || topRequest.compareTo(m) < 0) {
+				send(newMessage(TYPE.POSTPONED), m.process);
+			} else {
+				if(!inquiring.get()) {
+					inquiring.set(true);
+					send(newMessage(TYPE.INQUIRE), current_grant.get().process);
+				}
+			}
+		}
+	}
+	
 	@Override
 	public void receive(Message m) {
 		loginfo("Received " + m.toString());
 		// When receiving a message, set the clock to the max of the current
 		// clock and the message time and increase
-		clock = Math.max(clock, m.sender_time) + 1;
-		
-
+		clock = Math.max(clock, m.time) + 1;
+		switch(m.type) {
+		case REQUEST:
+			handleRequest(m);
+			break;
+		case GRANT:
+			if(no_grants.incrementAndGet() == requestSet.size()) {
+				postponed.set(false);
+				executeCriticalSection();
+				multicastNewMessage(TYPE.RELEASE);
+			}
+			break;
+		case INQUIRE:
+			while(!postponed.get() && no_grants.get() <= requestSet.size()) {
+				try {
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					logerr("Was interrupted while handling INQUIRE");
+					break;
+				}
+			}
+			if(postponed.get()) {
+				no_grants.decrementAndGet();
+				send(newMessage(TYPE.RELINQUISH), m.process);
+			}
+			break;
+		case RELINQUISH:
+			inquiring.set(false);
+			granted.set(false);
+			requestQueue.add(current_grant.get());
+			current_grant.set(requestQueue.poll());
+			granted.set(true);
+			send(newMessage(TYPE.GRANT), current_grant.get().process);
+			break;
+		case RELEASE:
+			granted.set(false);
+			inquiring.set(false);
+			if(!requestQueue.isEmpty()) {
+				current_grant.set(requestQueue.poll());
+				send(newMessage(TYPE.GRANT), current_grant.get().process);
+				granted.set(true);
+			}
+			break;
+		case POSTPONED:
+			postponed.set(true);
+			break;
+		default:
+			logerr(String.format("Unhandled message %s", m.toString()));
+		}
+	}
+	
+	public void sendRequest() {
+		no_grants.set(0);
+		multicastNewMessage(TYPE.REQUEST);
 	}
 	
 	/**
-	 * Broadcast a message to all processes in the request set
+	 * Multicast a message to all processes in the request set
 	 * @param m the message
 	 */
-	public void send(final Message m) {
+	public void multicast(final Message m) {
 		loginfo(String.format("Sending to request set %s message %s", Arrays.toString(requestSet.toArray()) , m.toString()));
 		// Broadcast the message to every process (including this process)
 		for(final Integer i : requestSet) {
-			try {
-				((Process_RMI)rmireg.lookup(processrmimap.get(i))).receive(m);
-			} catch (RemoteException | NotBoundException e) {
-				logerr(String.format("Could not send %s to %s", m, processrmimap.get(i)));
-				e.printStackTrace();
-			}
+			send(m, i, false);
+		}
+	}
+	
+	
+	public void send(Message m, int proc_id) {
+		send(m,proc_id,true);
+	}
+	/**
+	 * Send a message to a process
+	 * @param m
+	 */
+	public void send(Message m, int proc_id, boolean log) {
+		if(log) {
+			loginfo(String.format("Sending to process %d message %s", proc_id , m.toString()));
+		}
+		try {
+			((Process_RMI)rmireg.lookup(processrmimap.get(proc_id))).receive(m);
+		} catch (RemoteException | NotBoundException e) {
+			logerr(String.format("Could not send %s to %d", m, proc_id));
+			e.printStackTrace();
 		}
 	}
 
-	private void randomDelay() {
-		// Random delay before sending [0.5,3]s
+	private void randomDelay(int min, int max) {
 		try {
-			Thread.sleep(new Random().nextInt(2500)+500);
+			Thread.sleep(new Random().nextInt(max)+min);
 		} catch (InterruptedException e) {
 		}
 	}
 
-	private synchronized void loginfo(String msg) {
+	private void loginfo(String msg) {
 		log(Level.INFO, msg);
 	}
 
@@ -117,5 +218,11 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	
 	public void setClock(int c){
 		this.clock = c;
+	}
+	
+	private void executeCriticalSection() {
+		loginfo("Entering CS");
+		randomDelay(500,5000);
+		loginfo("Done with CS");
 	}
 }

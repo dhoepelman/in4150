@@ -2,17 +2,25 @@ package ex2;
 
 import java.io.Serializable;
 
+/**
+ * Message. Comparable on total ordering time.
+ */
 public class Message implements Serializable, Comparable<Message> {
 	private static final long serialVersionUID = 5695487132387898197L;
 	
 	/**
 	 * Sending process id
 	 */
-	public final int sender_process;
+	public final int process;
 	/**
 	 * Value of clock in sender process
 	 */
-	public final int sender_time;
+	public final int time;
+	
+	/**
+	 * Type of the message
+	 */
+	public final TYPE type;
 
 	/**
 	 * Create a new message
@@ -22,18 +30,19 @@ public class Message implements Serializable, Comparable<Message> {
 	 * @param time
 	 *            clock value of sending process
 	 */
-	public Message(int sender_process, int time) {
-		this.sender_process = sender_process;
-		this.sender_time = time;
+	public Message(int sender_process, int time, TYPE t) {
+		this.process = sender_process;
+		this.time = time;
+		this.type = t;
 	}
 
 	@Override
 	public int compareTo(Message arg0) {
-		int d = sender_time - arg0.sender_time;
+		int d = time - arg0.time;
 
 		if (d == 0) {
 			// Equal time, use process id as tie-breaker
-			d = sender_process - arg0.sender_process;
+			d = process - arg0.process;
 		}
 
 		return d;
@@ -43,8 +52,8 @@ public class Message implements Serializable, Comparable<Message> {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + sender_process;
-		result = prime * result + sender_time;
+		result = prime * result + process;
+		result = prime * result + time;
 		return result;
 	}
 
@@ -57,14 +66,23 @@ public class Message implements Serializable, Comparable<Message> {
 		if (getClass() != obj.getClass())
 			return false;
 		Message other = (Message) obj;
-		if (sender_process != other.sender_process)
+		if (process != other.process)
 			return false;
-		if (sender_time != other.sender_time)
+		if (time != other.time)
 			return false;
 		return true;
 	}
 	
 	public String toString() {
-		return String.format("MSG[%d,%d]", sender_process, sender_time);
+		return String.format("%s[%d,%d]", type.toString(), process, time);
+	}
+	
+	public enum TYPE {
+		REQUEST,
+		GRANT,
+		RELEASE,
+		RELINQUISH,
+		INQUIRE,
+		POSTPONED
 	}
 }
