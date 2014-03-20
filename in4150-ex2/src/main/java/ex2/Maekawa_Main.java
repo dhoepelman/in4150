@@ -56,7 +56,7 @@ public class Maekawa_Main {
 			createLocalProcess(i);
 		}
 		
-		System.out.println("Processes started, now accepting commands:");
+		System.out.println("Press help to show commands\nProcesses started, now accepting commands:");
 		Scanner in = new Scanner(System.in);
 		console: while(true) {
 			String line = in.nextLine();
@@ -108,6 +108,11 @@ public class Maekawa_Main {
 				}
 				break;
 			case "help":
+				System.out.println("[proc_id]: Make proc_id request CS access\n"
+						+ "status ([proc_id]|all): get status of proc_id or all processes\n"
+						+ "test[n]: execute test n\n"
+						+ "random: Make a random process request CS access every second\n"
+						+ "exit: stop");
 				break;
 			default:
 				if(!processmap.containsKey(Integer.parseInt(line))) {
