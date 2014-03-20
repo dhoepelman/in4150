@@ -75,8 +75,8 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	private void handleRequest(Message m) {
 		if(!granted.get()) {
 			current_grant.set(m);
-			send(newMessage(TYPE.GRANT), m.process);
 			granted.set(true);
+			send(newMessage(TYPE.GRANT), m.process);
 		} else {
 			requestQueue.add(m);
 			Message topRequest = requestQueue.peek();
@@ -135,8 +135,8 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 			inquiring.set(false);
 			if(!requestQueue.isEmpty()) {
 				current_grant.set(requestQueue.poll());
-				send(newMessage(TYPE.GRANT), current_grant.get().process);
 				granted.set(true);
+				send(newMessage(TYPE.GRANT), current_grant.get().process);
 			}
 			break;
 		case POSTPONED:
@@ -147,10 +147,14 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 		}
 	}
 	
+	public final AtomicBoolean waiting_for_cs = new AtomicBoolean(false);
 	public void sendRequestForCS() {
-		loginfo("I would like to enter my CS");
-		no_grants.set(0);
-		multicastNewMessage(TYPE.REQUEST);
+		if(!waiting_for_cs.get()) {
+			waiting_for_cs.set(true);
+			loginfo("I would like to enter my CS");
+			no_grants.set(0);
+			multicastNewMessage(TYPE.REQUEST);
+		}
 	}
 	
 	/**
@@ -159,7 +163,6 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	 */
 	public void multicast(final Message m) {
 		loginfo(String.format("Sending to request set %s message %s", Arrays.toString(requestSet.toArray()) , m.toString()));
-		// Broadcast the message to every process (including this process)
 		for(final Integer i : requestSet) {
 			send(m, i, false);
 		}
@@ -229,9 +232,10 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 	private void executeCriticalSection() {
 		inCS.set(true);
 		loginfo("Entering CS");
-		randomDelay(500,5000);
+		randomDelay(500,3000);
 		loginfo("Done with CS");
 		inCS.set(false);
+		waiting_for_cs.set(false);
 	}
 	
 	public String status() {

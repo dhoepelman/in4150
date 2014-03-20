@@ -68,6 +68,35 @@ public class Maekawa_Main {
 				letProcessEnterCS(1);
 				letProcessEnterCS(2);
 				break;
+			case "test2":
+				if(num_proc != 7) {
+					System.out.println("Only works with 7 processes");	
+				} else {
+					letProcessEnterCS(1);
+					letProcessEnterCS(5);
+					letProcessEnterCS(7);
+				}
+				break;
+			case "test3":
+				if(num_proc != 7) {
+					System.out.println("Only works with 7 processes");	
+				} else {
+					// Increment clock of 3,4,7
+					letProcessEnterCS(7);
+					Thread.sleep(3000);
+					// Now let 7 enter CS once more, and hope the request from 1 will interrupt it
+					letProcessEnterCS(7);
+					Thread.sleep(5);
+					System.err.println("Console done sleeping");
+					letProcessEnterCS(1);
+				}
+				break;
+			case "random":
+				Random r = new Random();
+				while(true) {
+					letProcessEnterCS(r.nextInt(num_proc)+1);
+					Thread.sleep(1000);
+				}
 			case "status":
 				String second = line.split(" ")[1];
 				if(second.equals("all")){
