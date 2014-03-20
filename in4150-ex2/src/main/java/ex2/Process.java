@@ -147,7 +147,8 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 		}
 	}
 	
-	public void sendRequest() {
+	public void sendRequestForCS() {
+		loginfo("I would like to enter my CS");
 		no_grants.set(0);
 		multicastNewMessage(TYPE.REQUEST);
 	}

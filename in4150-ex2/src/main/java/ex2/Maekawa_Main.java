@@ -63,23 +63,18 @@ public class Maekawa_Main {
 			switch(line) {
 			case "exit":
 				break console;
-			case "reset":
-				for(Process p : processmap.values()) {
-					p.setClock(0);
-				}
+			case "test1":
+				// 2 processes enter CS at the same time
+				letProcessEnterCS(1);
+				letProcessEnterCS(2);
 				break;
-			//case "test1":
-			//	TestCase1 tc1 = new TestCase1(processmap);
-			//	setTarget(tc1);
-			//	tc1.start();
-			//	break;
 			default:
 				if(!processmap.containsKey(Integer.parseInt(line))) {
 					System.out.println("Not a local process");
 					continue;
 				}
 				try {
-					processmap.get(Integer.parseInt(line)).sendRequest();
+					letProcessEnterCS(Integer.parseInt(line));
 				}
 				catch(NumberFormatException e) {
 					System.out.println("Invalid number");
@@ -91,6 +86,13 @@ public class Maekawa_Main {
 		}
 		in.close();
 		stop();
+	}
+	private void letProcessEnterCS(final int i) {
+		new Thread() {
+			public void run() {
+				processmap.get(i).sendRequestForCS();
+			}
+		}.start();
 	}
 	
 	private void createLocalProcess(int pid) {
