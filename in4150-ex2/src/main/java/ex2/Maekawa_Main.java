@@ -86,7 +86,7 @@ public class Maekawa_Main {
 					Thread.sleep(3000);
 					// Now let 7 enter CS once more, and hope the request from 1 will interrupt it
 					letProcessEnterCS(7);
-					Thread.sleep(5);
+					Thread.sleep(2);
 					System.err.println("Console done sleeping");
 					letProcessEnterCS(1);
 				}
@@ -106,6 +106,8 @@ public class Maekawa_Main {
 				} else {
 					System.out.println(processmap.get(Integer.parseInt(second)).status());
 				}
+				break;
+			case "help":
 				break;
 			default:
 				if(!processmap.containsKey(Integer.parseInt(line))) {
