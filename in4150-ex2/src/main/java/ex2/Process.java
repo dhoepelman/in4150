@@ -221,9 +221,27 @@ public class Process extends UnicastRemoteObject implements Process_RMI {
 		this.clock = c;
 	}
 	
+	private AtomicBoolean inCS = new AtomicBoolean(false);
 	private void executeCriticalSection() {
+		inCS.set(true);
 		loginfo("Entering CS");
 		randomDelay(500,5000);
 		loginfo("Done with CS");
+		inCS.set(false);
+	}
+	
+	public String status() {
+		StringBuilder sb = new StringBuilder();
+		
+		sb.append(String.format("Status of Process %d:\n", this.process_id));
+		sb.append(String.format("\tgranted: %b\n", this.granted.get()));
+		sb.append(String.format("\tcurrent_grant: %s\n", this.current_grant.get()));
+		sb.append(String.format("\tno_grants: %d\n", this.no_grants.get()));
+		sb.append(String.format("\tin CS: %b\n", this.inCS.get()));
+		sb.append(String.format("\tinquiring: %b\n", this.inquiring.get()));
+		sb.append(String.format("\tpostponed: %b\n", this.postponed.get()));
+		sb.append(String.format("\tRequest queue: %s\n", this.requestQueue.toString()));
+		
+		return sb.toString();
 	}
 }

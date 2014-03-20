@@ -60,13 +60,23 @@ public class Maekawa_Main {
 		Scanner in = new Scanner(System.in);
 		console: while(true) {
 			String line = in.nextLine();
-			switch(line) {
+			switch(line.split(" ")[0]) {
 			case "exit":
 				break console;
 			case "test1":
 				// 2 processes enter CS at the same time
 				letProcessEnterCS(1);
 				letProcessEnterCS(2);
+				break;
+			case "status":
+				String second = line.split(" ")[1];
+				if(second.equals("all")){
+					for(Process p : processmap.values()) {
+						System.out.println(p.status());
+					}
+				} else {
+					System.out.println(processmap.get(Integer.parseInt(second)).status());
+				}
 				break;
 			default:
 				if(!processmap.containsKey(Integer.parseInt(line))) {
