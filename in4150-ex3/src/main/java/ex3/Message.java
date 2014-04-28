@@ -5,36 +5,37 @@ import java.io.Serializable;
 /**
  * Message. Comparable on total ordering time.
  */
-public class Message implements Serializable {
+public class Message implements Serializable, Comparable<Message> {
 	private static final long serialVersionUID = 569548713387898197L;
-	
-	/**
-	 * Sending process id
-	 */
-	public final int process;
 
     /**
-     * Level of (level, id) content of message
+     * Sender node/link of the message
      */
+    public final int link;
+
     public final int level;
-    /**
-     * ID of (level, id) content of message
-     */
     public final int id;
 
-	/**
+    /**
 	 * Create a new message
-	 * 
-	 * @param sender_process
-	 *            sending process
+	 *
 	 */
-	public Message(int sender_process, int level, int id) {
-		this.process = sender_process;
-		this.level = level;
+	public Message(int link, int level, int id) {
+        this.link = link;
+        this.level = level;
         this.id = id;
 	}
 	
 	public String toString() {
-		return String.format("(%d,%d)[p:%d]", level, id, process);
+		return String.format("(%d,%d) from %d", level, id, link);
 	}
+
+    @Override
+    public int compareTo(Message o) {
+        int res = Integer.compare(level, o.level);
+        if(res == 0) {
+            res = Integer.compare(id, o.id);
+        }
+        return res;
+    }
 }
