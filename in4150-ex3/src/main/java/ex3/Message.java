@@ -6,7 +6,7 @@ import java.io.Serializable;
  * Message. Comparable on total ordering time.
  */
 public class Message implements Serializable, Comparable<Message> {
-	private static final long serialVersionUID = 569548713387898197L;
+    private static final long serialVersionUID = 569548713387898198L;
 
     /**
      * Sender node/link of the message
