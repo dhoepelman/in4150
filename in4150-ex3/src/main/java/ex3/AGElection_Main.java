@@ -86,51 +86,57 @@ public class AGElection_Main {
 
         System.out.println("Press help to show commands\nProcesses started, now accepting commands:");
         Scanner in = new Scanner(System.in);
-        console:
-        while (true) {
-            String line = in.nextLine();
-            switch (line.split(" ")[0]) {
-                case "exit":
-                    break console;
-                case "random":
-                    Random r = new Random();
-                    while (true) {
-                        letProcessStartElection(r.nextInt(num_nodes) + 1);
-                        Thread.sleep(1000);
-                    }
-                case "status":
-                    String second = line.split(" ")[1];
-                    if (second.equals("all")) {
-                        for (Node p : nodemap.values()) {
-                            System.out.println(p.status());
+        try {
+            console:
+            while (true) {
+                String line = in.nextLine();
+                switch (line.split(" ")[0]) {
+                    case "exit":
+                        break console;
+                    case "random":
+                        Random r = new Random();
+                        while (true) {
+                            letProcessStartElection(r.nextInt(num_nodes) + 1);
+                            Thread.sleep(1000);
                         }
-                    } else {
-                        System.out.println(nodemap.get(Integer.parseInt(second)).status());
-                    }
-                    break;
-                case "help":
-                    System.out.println("[proc_id]: Make proc_id request CS access\n"
-                            + "status ([proc_id]|all): get status of proc_id or all processes\n"
-                            + "test[n]: execute test n\n"
-                            + "random: Make a random process request CS access every second\n"
-                            + "exit: stop");
-                    break;
-                default:
-                    if (!nodemap.containsKey(Integer.parseInt(line))) {
-                        System.out.println("Not a local process");
-                        continue;
-                    }
-                    try {
-                        letProcessStartElection(Integer.parseInt(line));
-                    } catch (NumberFormatException e) {
-                        System.out.println("Invalid number");
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    case "status":
+                        String second = null;
+                        try {
+                            second = line.split(" ")[1];
+                        } catch (ArrayIndexOutOfBoundsException e) {
+                            System.err.println("status (all|process number)");
+                            continue;
+                        }
+                        if (second.equals("all")) {
+                            for (Node p : nodemap.values()) {
+                                System.out.println(p.status());
+                            }
+                        } else {
+                            System.out.println(nodemap.get(Integer.parseInt(second)).status());
+                        }
+                        break;
+                    case "help":
+                        System.out.println("You really need to put the commands here\n"
+                                + "exit: stop");
+                        break;
+                    default:
+                        if (!nodemap.containsKey(Integer.parseInt(line))) {
+                            System.out.println("Not a local process");
+                            continue;
+                        }
+                        try {
+                            letProcessStartElection(Integer.parseInt(line));
+                        } catch (NumberFormatException e) {
+                            System.out.println("Invalid number");
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                }
             }
+        } finally {
+            in.close();
+            stop();
         }
-        in.close();
-        stop();
     }
 
     private void letProcessStartElection(final int i) {
