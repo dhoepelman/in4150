@@ -1,6 +1,9 @@
 package ex3;
 
+import com.google.common.primitives.Ints;
+
 import java.rmi.AlreadyBoundException;
+import java.rmi.NoSuchObjectException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -115,9 +118,14 @@ public class AGElection_Main {
                         System.out.println("You really need to put the commands here\n"
                                 + "exit: stop");
                         break;
+                    case "reset":
+                        stop();
+                        run();
+                        break console;
                     default:
-                        if (!nodemap.containsKey(Integer.parseInt(line))) {
-                            System.out.println("Not a local process");
+                        Integer i = Ints.tryParse(line);
+                        if (i == null || !nodemap.containsKey(i)) {
+                            System.out.println("Typo or not a local process");
                             continue;
                         }
                         try {
@@ -163,6 +171,8 @@ public class AGElection_Main {
             for (String rmi_p : reg.list()) {
                 try {
                     reg.unbind(rmi_p);
+                } catch (NoSuchObjectException e) {
+                    // Already unbound
                 } catch (RemoteException | NotBoundException e) {
                     System.err.println("Could not unbind " + rmi_p);
                 }

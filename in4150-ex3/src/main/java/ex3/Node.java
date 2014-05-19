@@ -151,7 +151,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
         try {
             unexportObject(this, true);
         } catch (NoSuchObjectException e) {
-            e.printStackTrace();
+            // Already exported
         }
     }
 
@@ -195,8 +195,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
         private Integer potential_owner = null;
 
         private void send(final Message m, final int node_id) {
-            PROCESS_TYPE target = PROCESS_TYPE.BOTH;
-            target = PROCESS_TYPE.CP;
+            PROCESS_TYPE target = PROCESS_TYPE.CP;
             loginfo(String.format("Sending to node %d(%s) message %s", node_id, target.name(), m.toString()));
             Node.this.send(m, node_id, false, target);
         }
@@ -346,8 +345,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
         }
 
         private void send(final Message m, final int node_id) {
-            PROCESS_TYPE target = PROCESS_TYPE.BOTH;
-            target = PROCESS_TYPE.OP;
+            PROCESS_TYPE target = PROCESS_TYPE.OP;
             loginfo(String.format("Sending to node %d(%s) message %s", node_id, target.name(), m.toString()));
             Node.this.send(m, node_id, false, target);
         }
