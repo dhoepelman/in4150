@@ -246,7 +246,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
 
     public class Candidate_Process {
         private final int id;
-        private final List<Integer> untraversed_links;
+        private final Set<Integer> untraversed_links;
         private final Lock messageLock = new ReentrantLock();
         private final Condition messageArrival = messageLock.newCondition();
         private int level = 0;
@@ -260,7 +260,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
          * @param all_nodes The collection of all nodes/links in the system
          */
         public Candidate_Process(Collection<Integer> all_nodes, int node_id) {
-            this.untraversed_links = new ArrayList<>(all_nodes);
+            this.untraversed_links = new HashSet<>(all_nodes);
             this.id = node_id;
         }
 
@@ -280,11 +280,10 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
          * This Candidate process will try to get elected
          */
         public void elect() {
-            // Go throught he links in random order
-            Collections.shuffle(untraversed_links);
+            Random random = new Random();
             while (!done()) {
-                Iterator<Integer> it = untraversed_links.iterator();
-                int link = it.next();
+                // Get a random link from the set
+                int link = untraversed_links.toArray(new Integer[]{})[random.nextInt(untraversed_links.size())];
                 loginfo(String.format("Trying to capture %d", link));
                 try {
                     messageLock.lock();
