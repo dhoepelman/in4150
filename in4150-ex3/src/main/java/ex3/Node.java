@@ -78,11 +78,6 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
         }
     }
 
-
-    public void send(final Message m, final int proc_id, PROCESS_TYPE target) {
-        send(m, proc_id, true, target);
-    }
-
     /**
      * Send a message to a process
      *
@@ -259,8 +254,9 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
         private int level = 0;
         private boolean killed = false;
         private Lock messageLock = new ReentrantLock();
-        // while !untraved_linkes.isEmpty() && !killed
         private Condition messageArrival = messageLock.newCondition();
+        // Purely used for status
+        private boolean waitingForMessage = false;
 
         /**
          * Create a new candidate process
@@ -292,6 +288,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
                 send(newMessage(level, id), link);
                 try {
                     messageLock.lock();
+                    waitingForMessage = true;
                     messageArrival.await();
                 } catch (InterruptedException e) {
                     loginfo("Was interrupted while candidate process was waiting for response!");
@@ -319,6 +316,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
                     killed = true;
                     send(newMessage(level_, id_), link_);
                     messageLock.lock();
+                    waitingForMessage = false;
                     messageArrival.signal();
                 }
             }
@@ -335,7 +333,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
         }
 
         public String toString() {
-            return String.format("Node_%d(CP){killed=%b,level=%d,|untraversed|=%d}", node_id, killed, level, untraversed_links.size());
+            return String.format("Node_%d(CP){killed=%b,level=%d,|untraversed|=%d,waiting=%b}", node_id, killed, level, untraversed_links.size(), waitingForMessage);
         }
     }
 
