@@ -27,8 +27,8 @@ public class Message implements Serializable, Comparable<Message> {
 	}
 	
 	public String toString() {
-		return String.format("(%d,%d) from %d", level, id, link);
-	}
+        return String.format("(level=%d,id=%d)", level, id);
+    }
 
     @Override
     public int compareTo(Message o) {

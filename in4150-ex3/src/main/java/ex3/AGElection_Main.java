@@ -109,7 +109,7 @@ public class AGElection_Main {
                         }
                         if (second.equals("all")) {
                             for (Node p : nodemap.values()) {
-                                System.out.println(p.status());
+                                System.out.print(p.status());
                             }
                         } else {
                             System.out.println(nodemap.get(Integer.parseInt(second)).status());

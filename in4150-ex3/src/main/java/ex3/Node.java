@@ -14,20 +14,20 @@ import java.util.logging.Logger;
 
 
 public class Node extends UnicastRemoteObject implements Node_RMI {
-	private static final long serialVersionUID = -2731859365280472117L;
+    private static final long serialVersionUID = -2731859365280472117L;
 
     private static final int mindelay = 100;
     private static final int maxdelay = 200; // TODO: Better delays
     /**
      * Node owner_id
      */
-	public final int node_id;
+    public final int node_id;
     private final Logger log = Logger.getLogger("Node");
     /**
-	 * Map of all processes in the request set and their RMI strings
-	 */
-	private final Map<Integer, String> nodeRMIMap;
-	/**
+     * Map of all processes in the request set and their RMI strings
+     */
+    private final Map<Integer, String> nodeRMIMap;
+    /**
      * RMI registry
      */
     private final Registry rmireg;
@@ -98,7 +98,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
                     randomDelay(mindelay, maxdelay);
                     ((Node_RMI) rmireg.lookup(nodeRMIMap.get(node_id))).receive(m, target);
                 } catch (RemoteException | NotBoundException e) {
-                    logerr(String.format("Could not send %s to node %d", m, node_id));
+                    logerr(String.format("Could not send %s to node %d", m, node_id), "    ");
                     e.printStackTrace();
                 }
             }
@@ -110,12 +110,12 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
      */
     public void startElection() {
         if (cp != null) {
-            logerr("Cannot start election, there is already a candidate process");
+            logerr("Cannot start election, there is already a candidate process", "    ");
         }
         cp = new Candidate_Process(nodeRMIMap.keySet(), this.node_id);
         cp.elect();
         if (!cp.done()) {
-            logwarn("CP stopped before it was done, eh...?");
+            logwarn("CP stopped before it was done, eh...?", "    ");
         } else {
             if (cp.elected()) {
                 loginfo("CP was elected");
@@ -133,19 +133,23 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
     }
 
     private void loginfo(String msg) {
-        log(Level.INFO, msg);
+        loginfo(msg, "    ");
     }
 
-    private void logwarn(String msg) {
-        log(Level.WARNING, msg);
+    private void loginfo(String msg, String process) {
+        log(Level.INFO, process, msg);
     }
 
-    private void logerr(String msg) {
-        log(Level.SEVERE, msg);
+    private void logwarn(String msg, String process) {
+        log(Level.WARNING, process, msg);
     }
 
-    private synchronized void log(Level lvl, String msg) {
-        log.log(lvl, String.format("Node_%d: %s", node_id, msg));
+    private void logerr(String msg, String process) {
+        log(Level.SEVERE, process, msg);
+    }
+
+    private synchronized void log(Level lvl, String process, String msg) {
+        log.log(lvl, String.format("Node_%d%s:\t%s", node_id, process, msg));
     }
 
     public void stop() {
@@ -159,16 +163,25 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
     public String status() {
         StringBuilder sb = new StringBuilder();
 
-        sb.append(String.format("Status of Node %d:\n", this.node_id));
-
-        // TODO: Status
-
-        return sb.toString();
+        if (op != null) {
+            sb.append(op.toString());
+            sb.append("\n");
+        }
+        if (cp != null) {
+            sb.append(cp.toString());
+            sb.append("\n");
+        }
+        if (sb.length() == 0) {
+            return String.format("Node_%d has no op or cp\n", node_id);
+        } else {
+            return sb.toString();
+        }
     }
 
     public String toString() {
         return String.format("Node_%d", node_id);
     }
+
 
     /**
      * A class for the ordinary processes
@@ -186,6 +199,16 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
         private Integer owner = null;
         private Integer potential_owner = null;
 
+        private void send(final Message m, final int node_id) {
+            PROCESS_TYPE target = PROCESS_TYPE.BOTH;
+            if (node_id == Node.this.node_id) {
+                // Prevent infinite loops by sending only to the other process on this node
+                target = PROCESS_TYPE.CP;
+            }
+            loginfo(String.format("Sending to node %d(%s) message %s", node_id, target.name(), m.toString()));
+            Node.this.send(m, node_id, false, target);
+        }
+
         public synchronized void process(Message m) {
             int level_ = m.level;
             int id_ = m.id;
@@ -195,7 +218,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
                 // New message (level,owner_id) is smaller, ignore
                 // CHeck if message (level,id) is larger than (level,owner_id)
             } else if (level_ > level || (level_ == level && id_ > owner_id)) {
-                loginfo(String.format("OP captured by %d", id_));
+                loginfo(String.format("Captured by %d", id_));
                 // We have been captured
                 // Take potential new owner
                 potential_owner = link_;
@@ -204,7 +227,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
                 if (owner == null) {
                     owner = potential_owner;
                 } else {
-                    loginfo(String.format("OP killing %d", owner));
+                    loginfo(String.format("Killing %d", owner));
                 }
                 // Kill previous owner, or ack new owner
                 send(newMessage(level_, id_), owner);
@@ -216,18 +239,19 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
                 // ack new father
                 send(newMessage(level_, id_), owner);
             }
+
+
         }
 
-        private void send(final Message m, final int node_id) {
-            PROCESS_TYPE target = PROCESS_TYPE.BOTH;
-            if (node_id == Node.this.node_id) {
-                // Prevent infinite loops by sending only to the other
-                target = PROCESS_TYPE.CP;
-            }
-            loginfo(String.format("OP sending to node %d(%s) message %s", node_id, target.name(), m.toString()));
-            Node.this.send(m, node_id, false, target);
+        private void loginfo(String msg) {
+            Node.this.loginfo(msg, "(OP)");
+        }
+
+        public String toString() {
+            return String.format("Node_%d(OP){level=%d,owner=%d,potential_owner=%d}", node_id, level, owner, potential_owner);
         }
     }
+
 
     public class Candidate_Process {
         private final int id;
@@ -235,7 +259,6 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
         private int level = 0;
         private boolean killed = false;
         private Lock messageLock = new ReentrantLock();
-
         // while !untraved_linkes.isEmpty() && !killed
         private Condition messageArrival = messageLock.newCondition();
 
@@ -247,6 +270,10 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
         public Candidate_Process(Set<Integer> all_nodes, int node_id) {
             this.untraversed_links = new HashSet<>(all_nodes);
             this.id = node_id;
+        }
+
+        private void loginfo(String msg) {
+            Node.this.loginfo(msg, "(CP)");
         }
 
         public boolean elected() {
@@ -261,13 +288,13 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
             while (!done()) {
                 Iterator<Integer> it = untraversed_links.iterator();
                 int link = it.next();
-                loginfo(String.format("CP trying to capture %d", link));
+                loginfo(String.format("Trying to capture %d", link));
                 send(newMessage(level, id), link);
                 try {
                     messageLock.lock();
                     messageArrival.await();
                 } catch (InterruptedException e) {
-                    logwarn("CP was interrupted while candidate process was waiting for response");
+                    loginfo("Was interrupted while candidate process was waiting for response!");
                 } finally {
                     messageLock.unlock();
                 }
@@ -279,7 +306,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
             int id_ = m.id;
             int link_ = m.link;
             if (id == id_ && !killed) {
-                loginfo(String.format("CP captured %d", link_));
+                loginfo(String.format("Captured %d", link_));
                 level++;
                 untraversed_links.remove(link_);
                 messageLock.lock();
@@ -288,7 +315,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
                 if (level_ < level || (level_ == level && id_ < id)) { // (level',owner_id') <  (level,owner_id)
                     // ignore
                 } else {
-                    loginfo(String.format("CP killed by %d, which is now owned by %d", link_, id_));
+                    loginfo(String.format("Killed by %d, which is now owned by %d", link_, id_));
                     killed = true;
                     send(newMessage(level_, id_), link_);
                     messageLock.lock();
@@ -303,8 +330,12 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
                 // Prevent infinite loops by sending only to the other
                 target = PROCESS_TYPE.OP;
             }
-            loginfo(String.format("CP sending to node %d(%s) message %s", node_id, target.name(), m.toString()));
+            loginfo(String.format("Sending to node %d(%s) message %s", node_id, target.name(), m.toString()));
             Node.this.send(m, node_id, false, target);
+        }
+
+        public String toString() {
+            return String.format("Node_%d(CP){killed=%b,level=%d,|untraversed|=%d}", node_id, killed, level, untraversed_links.size());
         }
     }
 
