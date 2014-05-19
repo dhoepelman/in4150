@@ -16,7 +16,7 @@ import java.util.logging.Logger;
 public class Node extends UnicastRemoteObject implements Node_RMI {
     private static final long serialVersionUID = -2731859365280472117L;
 
-    private static final int mindelay = 500;
+    private static final int mindelay = 300;
     private static final int maxdelay = 1000;
     /**
      * Node owner_id
@@ -103,12 +103,16 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
     /**
      * Make this node start a election
      */
-    public void startElection() {
+    public void startElection(List<Integer> order) {
         if (cp != null) {
             logerr("Cannot start election, there is already a candidate process", "    ");
         }
-        cp = new Candidate_Process(nodeRMIMap.keySet(), this.node_id);
-        cp.elect();
+        cp = new Candidate_Process();
+        if(order == null) {
+            cp.elect();
+        }else {
+            cp.elect(order);
+        }
         if (!cp.done()) {
             logwarn("CP stopped before it was done, eh...?", "    ");
         } else {
@@ -118,6 +122,10 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
                 loginfo("CP was not elected");
             }
         }
+    }
+
+    public void startElection() {
+        startElection(null);
     }
 
     private void randomDelay(int min, int max) {
@@ -245,24 +253,14 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
 
 
     public class Candidate_Process {
-        private final int id;
-        private final Set<Integer> untraversed_links;
+        private final int id = node_id;
+        private Deque<Integer> untraversed_links;
         private final Lock messageLock = new ReentrantLock();
         private final Condition messageArrival = messageLock.newCondition();
         private int level = 0;
         private boolean killed = false;
         // Purely used for status
         private volatile boolean waitingForMessage = false;
-
-        /**
-         * Create a new candidate process
-         *
-         * @param all_nodes The collection of all nodes/links in the system
-         */
-        public Candidate_Process(Collection<Integer> all_nodes, int node_id) {
-            this.untraversed_links = new HashSet<>(all_nodes);
-            this.id = node_id;
-        }
 
         private void loginfo(String msg) {
             Node.this.loginfo(msg, "(CP)");
@@ -276,14 +274,24 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
             return killed || untraversed_links.isEmpty();
         }
 
+        public void elect() {
+            // capture nodes in random order
+            List<Integer> captureOrder = new ArrayList<>(Arrays.asList(nodeRMIMap.keySet().toArray(new Integer[]{})));
+            Collections.shuffle(captureOrder);
+            elect(captureOrder);
+        }
+
         /**
          * This Candidate process will try to get elected
          */
-        public void elect() {
-            Random random = new Random();
+        public void elect(List<Integer> captureOrder) {
+            if(captureOrder.size() != nodeRMIMap.size()) {
+                logerr(String.format("Order does not contain all nodes"), "(CP)");
+                return;
+            }
+            untraversed_links = new ArrayDeque<>(captureOrder);
             while (!done()) {
-                // Get a random link from the set
-                int link = untraversed_links.toArray(new Integer[]{})[random.nextInt(untraversed_links.size())];
+                Integer link = untraversed_links.peek();
                 loginfo(String.format("Trying to capture %d", link));
                 try {
                     messageLock.lock();
@@ -319,6 +327,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
             if (id == m.id && !killed) {
                 loginfo(String.format("Captured %d", m.link));
                 level++;
+
                 untraversed_links.remove(m.link);
                 messageLock.lock();
                 try {

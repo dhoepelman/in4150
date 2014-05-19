@@ -8,10 +8,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.Scanner;
+import java.util.*;
 
 /**
  * Main class for Distributed algorithms ex. 1. Initiates processes and
@@ -99,9 +96,23 @@ public class AGElection_Main {
                             Thread.sleep(1000);
                         }
                         break;
-                    case "test1":
-                        letProcessStartElection(1);
-                        letProcessStartElection(2);
+                    case "concurrent-1":
+                        letProcessStartElection(1, Arrays.asList(new Integer[]{1,2,3}));
+                        letProcessStartElection(2, Arrays.asList(new Integer[]{1,2,3}));
+                        break;
+                    case "concurrent-2":
+                        letProcessStartElection(2, Arrays.asList(new Integer[]{1,2,3}));
+                        Thread.sleep(50);
+                        letProcessStartElection(1, Arrays.asList(new Integer[]{1,2,3}));
+                        break;
+                    case "clash":
+                        letProcessStartElection(1, Arrays.asList(new Integer[]{1,2,3}));
+                        letProcessStartElection(2, Arrays.asList(new Integer[]{3,2,1}));
+                        break;
+                    case "slow-6":
+                        letProcessStartElection(5);
+                        Thread.sleep(2000);
+                        letProcessStartElection(6);
                         break;
                     case "status":
                         String second;
@@ -147,8 +158,12 @@ public class AGElection_Main {
         }
     }
 
+    private void letProcessStartElection(final int i, List<Integer> order) {
+        new Thread(() -> nodemap.get(i).startElection(order)).start();
+    }
+
     private void letProcessStartElection(final int i) {
-        new Thread(() -> nodemap.get(i).startElection()).start();
+        letProcessStartElection(i, null);
     }
 
     private void createLocalNode(int pid) {
