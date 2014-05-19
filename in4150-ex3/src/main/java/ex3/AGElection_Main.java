@@ -98,6 +98,11 @@ public class AGElection_Main {
                             letProcessStartElection(r.nextInt(num_nodes) + 1);
                             Thread.sleep(1000);
                         }
+                        break;
+                    case "test1":
+                        letProcessStartElection(1);
+                        letProcessStartElection(2);
+                        break;
                     case "status":
                         String second;
                         try {

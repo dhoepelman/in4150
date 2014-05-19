@@ -16,8 +16,8 @@ import java.util.logging.Logger;
 public class Node extends UnicastRemoteObject implements Node_RMI {
     private static final long serialVersionUID = -2731859365280472117L;
 
-    private static final int mindelay = 100;
-    private static final int maxdelay = 200; // TODO: Better delays
+    private static final int mindelay = 500;
+    private static final int maxdelay = 1000;
     /**
      * Node owner_id
      */
@@ -246,7 +246,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
 
     public class Candidate_Process {
         private final int id;
-        private final Set<Integer> untraversed_links;
+        private final List<Integer> untraversed_links;
         private final Lock messageLock = new ReentrantLock();
         private final Condition messageArrival = messageLock.newCondition();
         private int level = 0;
@@ -259,8 +259,8 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
          *
          * @param all_nodes The collection of all nodes/links in the system
          */
-        public Candidate_Process(Set<Integer> all_nodes, int node_id) {
-            this.untraversed_links = new HashSet<>(all_nodes);
+        public Candidate_Process(Collection<Integer> all_nodes, int node_id) {
+            this.untraversed_links = new ArrayList<>(all_nodes);
             this.id = node_id;
         }
 
@@ -280,6 +280,8 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
          * This Candidate process will try to get elected
          */
         public void elect() {
+            // Go throught he links in random order
+            Collections.shuffle(untraversed_links);
             while (!done()) {
                 Iterator<Integer> it = untraversed_links.iterator();
                 int link = it.next();
