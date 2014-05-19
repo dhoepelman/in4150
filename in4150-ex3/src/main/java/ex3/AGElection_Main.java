@@ -50,24 +50,21 @@ public class AGElection_Main {
         }
 
         Registry reg = null;
-        // Create registry if neccesary
-        if (reg == null) {
-            try {
-                //reg = LocateRegistry.createRegistry(RMI_PORT);
-                reg = LocateRegistry.createRegistry(RMI_PORT);
-            } catch (Exception e) {
-                // Registry already exists
-                System.err.println("A RMI Registery could not be created");
-                e.printStackTrace();
-            }
-        }
-        if(reg == null) {
+        try {
+            // Create registry if neccesary
+            reg = LocateRegistry.createRegistry(RMI_PORT);
+        } catch (Exception e) {
+            // Registry already exists
+            //System.err.println("A RMI Registery could not be created");
+            //e.printStackTrace();
             try {
                 //reg = LocateRegistry.getRegistry(RMI_PORT);
                 reg = LocateRegistry.getRegistry();
-            } catch (RemoteException e) {
-                System.err.println("A RMI Registery could not be obtained or created");
+            } catch (RemoteException e2) {
                 e.printStackTrace();
+                System.err.println("A RMI registry could not be created");
+                e2.printStackTrace();
+                System.err.println("A RMI Registry could not be obtained");
             }
         }
 
@@ -85,8 +82,7 @@ public class AGElection_Main {
         }
 
         System.out.println("Press help to show commands\nProcesses started, now accepting commands:");
-        Scanner in = new Scanner(System.in);
-        try {
+        try (Scanner in = new Scanner(System.in)) {
             console:
             while (true) {
                 String line = in.nextLine();
@@ -100,7 +96,7 @@ public class AGElection_Main {
                             Thread.sleep(1000);
                         }
                     case "status":
-                        String second = null;
+                        String second;
                         try {
                             second = line.split(" ")[1];
                         } catch (ArrayIndexOutOfBoundsException e) {
@@ -134,22 +130,18 @@ public class AGElection_Main {
                 }
             }
         } finally {
-            in.close();
             stop();
         }
     }
 
     private void letProcessStartElection(final int i) {
-        new Thread(() -> {
-            nodemap.get(i).startElection();
-        }).start();
+        new Thread(() -> nodemap.get(i).startElection()).start();
     }
 
     private void createLocalNode(int pid) {
         String rmiid = "rmi://" + RMI_HOST + ":" + RMI_PORT + "/p_" + pid;
         try {
             nodermimap.put(pid, rmiid);
-            Map<Integer, String> reqSet = new HashMap<>();
             Node p = new Node(pid, nodermimap, reg);
             nodemap.put(pid, p);
             reg.bind(rmiid, p);
@@ -182,7 +174,8 @@ public class AGElection_Main {
     }
 
     @Override
-    protected void finalize() {
+    protected void finalize() throws Throwable {
+        super.finalize();
         if (running) {
             stop();
         }
