@@ -196,10 +196,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
 
         private void send(final Message m, final int node_id) {
             PROCESS_TYPE target = PROCESS_TYPE.BOTH;
-            if (node_id == Node.this.node_id) {
-                // Prevent infinite loops by sending only to the other process on this node
-                target = PROCESS_TYPE.CP;
-            }
+            target = PROCESS_TYPE.CP;
             loginfo(String.format("Sending to node %d(%s) message %s", node_id, target.name(), m.toString()));
             Node.this.send(m, node_id, false, target);
         }
@@ -251,12 +248,12 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
     public class Candidate_Process {
         private final int id;
         private final Set<Integer> untraversed_links;
+        private final Lock messageLock = new ReentrantLock();
+        private final Condition messageArrival = messageLock.newCondition();
         private int level = 0;
         private boolean killed = false;
-        private Lock messageLock = new ReentrantLock();
-        private Condition messageArrival = messageLock.newCondition();
         // Purely used for status
-        private boolean waitingForMessage = false;
+        private volatile boolean waitingForMessage = false;
 
         /**
          * Create a new candidate process
@@ -280,54 +277,77 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
             return killed || untraversed_links.isEmpty();
         }
 
+        /**
+         * This Candidate process will try to get elected
+         */
         public void elect() {
             while (!done()) {
                 Iterator<Integer> it = untraversed_links.iterator();
                 int link = it.next();
                 loginfo(String.format("Trying to capture %d", link));
-                send(newMessage(level, id), link);
                 try {
                     messageLock.lock();
-                    waitingForMessage = true;
-                    messageArrival.await();
+                    try {
+                        send(newMessage(level, id), link);
+                        waitingForMessage = true;
+                        // Wait until a response to arrives from the link or this CP gets killed
+                        messageArrival.await();
+                    } finally {
+                        messageLock.unlock();
+                    }
+                    /*
+                    messageLock.unlock();
+                    while (waitingForMessage == true) {
+                        // Busy wait
+                        long start = System.currentTimeMillis();
+                        while (System.currentTimeMillis() - start < 1000) {
+                        }
+                    }
+                    if (false) {
+                        throw new InterruptedException();
+                    }*/
                 } catch (InterruptedException e) {
                     loginfo("Was interrupted while candidate process was waiting for response!");
-                } finally {
-                    messageLock.unlock();
                 }
             }
         }
 
+        /**
+         * Process a message for the candidate process
+         */
         public synchronized void process(Message m) {
-            int level_ = m.level;
-            int id_ = m.id;
-            int link_ = m.link;
-            if (id == id_ && !killed) {
-                loginfo(String.format("Captured %d", link_));
+            if (id == m.id && !killed) {
+                loginfo(String.format("Captured %d", m.link));
                 level++;
-                untraversed_links.remove(link_);
+                untraversed_links.remove(m.link);
                 messageLock.lock();
-                messageArrival.signal();
-            } else {
-                if (level_ < level || (level_ == level && id_ < id)) { // (level',owner_id') <  (level,owner_id)
-                    // ignore
-                } else {
-                    loginfo(String.format("Killed by %d, which is now owned by %d", link_, id_));
-                    killed = true;
-                    send(newMessage(level_, id_), link_);
-                    messageLock.lock();
+                try {
                     waitingForMessage = false;
                     messageArrival.signal();
+                } finally {
+                    messageLock.unlock();
+                }
+            } else {
+                if (m.level < level || (m.level == level && m.id < id)) { // (level',owner_id') <  (level,owner_id)
+                    // ignore
+                } else {
+                    loginfo(String.format("Killed by %d, which is now owned by %d", m.link, m.id));
+                    killed = true;
+                    messageLock.lock();
+                    try {
+                        send(newMessage(m.level, m.id), m.link);
+                        waitingForMessage = false;
+                        messageArrival.signal();
+                    } finally {
+                        messageLock.unlock();
+                    }
                 }
             }
         }
 
         private void send(final Message m, final int node_id) {
             PROCESS_TYPE target = PROCESS_TYPE.BOTH;
-            if (node_id == Node.this.node_id) {
-                // Prevent infinite loops by sending only to the other
-                target = PROCESS_TYPE.OP;
-            }
+            target = PROCESS_TYPE.OP;
             loginfo(String.format("Sending to node %d(%s) message %s", node_id, target.name(), m.toString()));
             Node.this.send(m, node_id, false, target);
         }

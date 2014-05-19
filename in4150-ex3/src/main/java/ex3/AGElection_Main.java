@@ -91,7 +91,7 @@ public class AGElection_Main {
                         break console;
                     case "random":
                         Random r = new Random();
-                        while (true) {
+                        for (int i = 120; i > 0; i--) {
                             letProcessStartElection(r.nextInt(num_nodes) + 1);
                             Thread.sleep(1000);
                         }
