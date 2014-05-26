@@ -19,18 +19,22 @@ public class AGElection_Main {
     private static final String RMI_HOST = "localhost";
     private final static int default_num_node = 3;
     private final int num_nodes;
+    private final Boolean even_nodes;
+    private final String remote_host;
     private Registry reg;
-    private Map<Integer, Node> nodemap = new HashMap<>();
+    private Map<Integer, Node> nodemap = new HashMap<Integer, Node>();
     private Map<Integer, String> nodermimap = new HashMap<>();
     private boolean running = false;
 
-    public AGElection_Main(int num_nodes) {
+    public AGElection_Main(int num_nodes, Boolean even_nodes, String remote_host) {
         this.num_nodes = num_nodes;
+        this.even_nodes = even_nodes;
+        this.remote_host = remote_host;
     }
 
     public static void main(String... args) throws InterruptedException {
-        if (args.length > 1) {
-            System.out.println("AGELection_Main [num_nodes=3]");
+        if (args.length > 2) {
+            System.out.println("AGELection_Main [num_nodes=3] [even remote_host]");
             return;
         }
         int num_node = default_num_node;
@@ -39,8 +43,19 @@ public class AGElection_Main {
         } catch (Exception e) {
             System.err.println("Invalid number of nodes, using the default of " + default_num_node);
         }
+        Boolean even_nodes = null;
+        String remote_host = null;
+        if (args.length > 1) {
+            try {
+                even_nodes = Boolean.parseBoolean(args[1]);
+                remote_host = args[2];
+            } catch (Exception e) {
+                System.err.println("Invalid boolean even, defaulting to all nodes");
+            }
+        }
 
-        new AGElection_Main(num_node).run();
+
+        new AGElection_Main(num_node, even_nodes, remote_host).run();
     }
 
     private static Registry createRegistry() {
@@ -78,7 +93,11 @@ public class AGElection_Main {
 
         // create the local processes
         for (int i = 1; i <= num_nodes; i++) {
-            createLocalNode(i);
+            if (remote_host == null || i % 2 == (even_nodes ? 0 : 1)) {
+                createLocalNode(i);
+            } else {
+                bindRemoteProcess(i);
+            }
         }
 
         System.out.println("Press help to show commands\nProcesses started, now accepting commands:");
@@ -97,22 +116,27 @@ public class AGElection_Main {
                         }
                         break;
                     case "concurrent-1":
-                        letProcessStartElection(1, Arrays.asList(new Integer[]{1,2,3}));
-                        letProcessStartElection(2, Arrays.asList(new Integer[]{1,2,3}));
+                        letProcessStartElection(1, Arrays.asList(new Integer[]{1, 2, 3}));
+                        letProcessStartElection(2, Arrays.asList(new Integer[]{1, 2, 3}));
                         break;
                     case "concurrent-2":
-                        letProcessStartElection(2, Arrays.asList(new Integer[]{1,2,3}));
+                        letProcessStartElection(2, Arrays.asList(new Integer[]{1, 2, 3}));
                         Thread.sleep(50);
-                        letProcessStartElection(1, Arrays.asList(new Integer[]{1,2,3}));
+                        letProcessStartElection(1, Arrays.asList(new Integer[]{1, 2, 3}));
                         break;
                     case "clash":
-                        letProcessStartElection(1, Arrays.asList(new Integer[]{1,2,3}));
-                        letProcessStartElection(2, Arrays.asList(new Integer[]{3,2,1}));
+                        letProcessStartElection(1, Arrays.asList(new Integer[]{1, 2, 3}));
+                        letProcessStartElection(2, Arrays.asList(new Integer[]{3, 2, 1}));
                         break;
                     case "slow-6":
                         letProcessStartElection(5);
                         Thread.sleep(2000);
                         letProcessStartElection(6);
+                        break;
+                    case "concurrent-10":
+                        letProcessStartElection(1);
+                        letProcessStartElection(2);
+                        letProcessStartElection(3);
                         break;
                     case "status":
                         String second;
@@ -178,6 +202,10 @@ public class AGElection_Main {
             e.printStackTrace();
             System.exit(1);
         }
+    }
+
+    private void bindRemoteProcess(int pid) {
+        nodermimap.put(pid, "rmi://" + remote_host + ":" + RMI_PORT + "/p_" + pid);
     }
 
     private void stop() {
