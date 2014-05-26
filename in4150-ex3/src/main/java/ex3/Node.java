@@ -217,7 +217,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
                 // New message (level,owner_id) is smaller, ignore
                 // CHeck if message (level,id) is larger than (level,owner_id)
             } else if (level_ > level || (level_ == level && id_ > owner_id)) {
-                loginfo(String.format("Captured by %d", id_));
+                loginfo(String.format("Captured by %d. Previous was (%d,%d)", id_, level, owner_id));
                 // We have been captured
                 // Take potential new owner
                 potential_owner = link_;
@@ -253,10 +253,9 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
 
 
     public class Candidate_Process {
-        private final int id = node_id;
-        private Deque<Integer> untraversed_links;
-        private final Lock messageLock = new ReentrantLock();
+        private final Lock messageLock = new ReentrantLock();        private final int id = node_id;
         private final Condition messageArrival = messageLock.newCondition();
+        private Deque<Integer> untraversed_links;
         private int level = 0;
         private boolean killed = false;
         // Purely used for status
@@ -285,7 +284,7 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
          * This Candidate process will try to get elected
          */
         public void elect(List<Integer> captureOrder) {
-            if(captureOrder.size() != nodeRMIMap.size()) {
+            if (captureOrder.size() != nodeRMIMap.size()) {
                 logerr(String.format("Order does not contain all nodes"), "(CP)");
                 return;
             }
@@ -363,6 +362,8 @@ public class Node extends UnicastRemoteObject implements Node_RMI {
         public String toString() {
             return String.format("Node_%d(CP){killed=%b,level=%d,|untraversed|=%d,waiting=%b}", node_id, killed, level, untraversed_links.size(), waitingForMessage);
         }
+
+
     }
 
 

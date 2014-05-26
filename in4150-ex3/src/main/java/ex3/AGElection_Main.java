@@ -155,7 +155,10 @@ public class AGElection_Main {
                         }
                         break;
                     case "help":
-                        System.out.println("You really need to put the commands here\n"
+                        System.out.println("status: show the status of all nodes and processes\n"
+                                + "X: make node X start election\n"
+                                + "{concurrent-1,concurrent-2,clash,slow-6,concurrent-10}: do this testcase"
+                                + "reset: Reset all nodes"
                                 + "exit: stop");
                         break;
                     case "reset":
